@@ -3,7 +3,7 @@ const path = require('path')
 
 const is = require('./is')
 
-async function getStackTrace (objWithStack, cb) {
+function getStackTrace (objWithStack, cb) {
 
     stackman.callsites(objWithStack, function (err, callsites) {
 
@@ -42,7 +42,7 @@ async function getStackTrace (objWithStack, cb) {
 
 const emptySourceContext = { pre: null, post: null, line: null }
 
-async function getStackFrame (callsite, cb) {
+function getStackFrame (callsite, cb) {
 
     callsite.sourceContext(function (err, sourceContext) {
         if (err) {
