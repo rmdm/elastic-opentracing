@@ -163,19 +163,19 @@ describe('Tracer', function () {
 
         it('injects baggage fields on the text map carrier', function () {
 
-            const spanContext = new SpanContext({
-                baggage: {
-                    boolean: true,
-                    number: 0,
-                    string: 'string',
-                    null: null,
-                    undefined: void 0,
-                    object: {
-                        field: {
-                            subfield: 'value',
-                        },
+            const spanContext = new SpanContext()
+
+            spanContext.setBaggage({
+                boolean: true,
+                number: 0,
+                string: 'string',
+                null: null,
+                undefined: void 0,
+                object: {
+                    field: {
+                        subfield: 'value',
                     },
-                }
+                },
             })
 
             const textMap = {}
@@ -192,19 +192,19 @@ describe('Tracer', function () {
 
         it('injects baggage fields on the http carrier', function () {
 
-            const spanContext = new SpanContext({
-                baggage: {
-                    boolean: true,
-                    number: 0,
-                    string: 'string',
-                    null: null,
-                    undefined: void 0,
-                    object: {
-                        field: {
-                            subfield: 'value',
-                        },
+            const spanContext = new SpanContext()
+
+            spanContext.setBaggage({
+                boolean: true,
+                number: 0,
+                string: 'string',
+                null: null,
+                undefined: void 0,
+                object: {
+                    field: {
+                        subfield: 'value',
                     },
-                }
+                },
             })
 
             const headers = {}
@@ -252,19 +252,19 @@ describe('Tracer', function () {
                 baggageKey: 'custom-baggage',
             })
 
-            const spanContext = new SpanContext({
-                baggage: {
-                    boolean: true,
-                    number: 0,
-                    string: 'string',
-                    null: null,
-                    undefined: void 0,
-                    object: {
-                        field: {
-                            subfield: 'value',
-                        },
+            const spanContext = new SpanContext()
+
+            spanContext.setBaggage({
+                boolean: true,
+                number: 0,
+                string: 'string',
+                null: null,
+                undefined: void 0,
+                object: {
+                    field: {
+                        subfield: 'value',
                     },
-                }
+                },
             })
 
             spanContext.setSampled(true)
@@ -466,17 +466,17 @@ describe('Tracer', function () {
                 cb()
             })
 
-            const transaction = {}
+            const transaction = {}, cb = ()=>{}
 
-            await tracer.sendTransaction(transaction)
+            await tracer.sendTransaction(transaction, cb)
 
             assert.strictEqual(
                 tracer._client.sendTransaction.getCall(0).args[0],
                 transaction
             )
             assert.strictEqual(
-                typeof tracer._client.sendTransaction.getCall(0).args[1],
-                'function'
+                tracer._client.sendTransaction.getCall(0).args[1],
+                cb
             )
         })
     })
@@ -485,21 +485,19 @@ describe('Tracer', function () {
 
         it('passes specified span to internal client sendSpan method', async function () {
 
-            sinon.stub(tracer._client, 'sendSpan').callsFake(function (s, cb) {
-                cb()
-            })
+            sinon.stub(tracer._client, 'sendSpan')
 
-            const span = {}
+            const span = {}, cb = ()=>{}
 
-            await tracer.sendSpan(span)
+            await tracer.sendSpan(span, cb)
 
             assert.strictEqual(
                 tracer._client.sendSpan.getCall(0).args[0],
                 span
             )
             assert.strictEqual(
-                typeof tracer._client.sendSpan.getCall(0).args[1],
-                'function'
+                tracer._client.sendSpan.getCall(0).args[1],
+                cb
             )
         })
     })
@@ -508,21 +506,19 @@ describe('Tracer', function () {
 
         it('passes specified error to internal client sendError method', async function () {
 
-            sinon.stub(tracer._client, 'sendError').callsFake(function (e, cb) {
-                cb()
-            })
+            sinon.stub(tracer._client, 'sendError')
 
-            const error = {}
+            const error = {}, cb = ()=>{}
 
-            await tracer.sendError(error)
+            await tracer.sendError(error, cb)
 
             assert.strictEqual(
                 tracer._client.sendError.getCall(0).args[0],
                 error
             )
             assert.strictEqual(
-                typeof tracer._client.sendError.getCall(0).args[1],
-                'function'
+                tracer._client.sendError.getCall(0).args[1],
+                cb
             )
         })
     })
@@ -531,16 +527,14 @@ describe('Tracer', function () {
 
         it('calls internal client end method', async function () {
 
-            sinon.stub(tracer._client, 'end').callsFake(function (cb) {
-                cb()
-            })
+            const cb = ()=>{}
 
-            const transaction = {}
+            sinon.stub(tracer._client, 'end')
 
-            await tracer.end(transaction)
+            await tracer.end(cb)
             assert.strictEqual(
-                typeof tracer._client.end.getCall(0).args[0],
-                'function'
+                tracer._client.end.getCall(0).args[0],
+                cb
             )
         })
     })

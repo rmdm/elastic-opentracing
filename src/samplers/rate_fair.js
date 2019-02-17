@@ -1,5 +1,6 @@
 const AlwaysSampler = require('./always')
 const RateSampler = require('./rate')
+const is = require('../util/is')
 
 class FairRateSampler extends AlwaysSampler {
 
@@ -26,7 +27,7 @@ class FairRateSampler extends AlwaysSampler {
 
     _group (span) {
 
-        if (!span || typeof span._getOperationName !== 'function') {
+        if (!span || !is.function(span._getOperationName)) {
             return null
         }
 

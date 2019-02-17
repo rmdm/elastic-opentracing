@@ -1,12 +1,13 @@
 {
   "name": "elastic-opentracing",
   "version": "0.1.0",
-  "description": "An unopinionated elasticsearch opentracing agent for node.js",
+  "description": "An alternative unopinionated Elastic APM OpenTracing agent for Node.js.",
   "main": "index.js",
   "scripts": {
+    "ci": "npm run lint && npm run cover",
+    "lint": "eslint src",
     "test": "mocha --recursive test",
-    "cover": "nyc npm t",
-    "lint": "eslint src"
+    "cover": "nyc npm t"
   },
   "author": "rmdm",
   "license": "MIT",

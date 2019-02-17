@@ -1,16 +1,17 @@
-const base64 = require('../base64')
-const SpanContext = require('../../span_context')
+const SpanContext = require('../span_context')
+const base64 = require('../util/base64')
+const is = require('../util/is')
 
 const CONTEXT_ID_KEY = 'elastic-ot-span-id'
 const BAGGAGE_KEY = 'elastic-ot-baggage'
 
 function inject (spanContext, carrier, options = {}) {
 
-    const contextIdKey = typeof options.contextIdKey === 'string'
+    const contextIdKey = is.string(options.contextIdKey)
         ? options.contextIdKey
         : CONTEXT_ID_KEY
 
-    const baggageKey = typeof options.baggageKey === 'string'
+    const baggageKey = is.string(options.baggageKey)
         ? options.baggageKey
         : BAGGAGE_KEY
 
@@ -27,15 +28,15 @@ function inject (spanContext, carrier, options = {}) {
 
 function extract (carrier, options = {}) {
 
-    const contextIdKey = typeof options.contextIdKey === 'string'
+    const contextIdKey = is.string(options.contextIdKey)
         ? options.contextIdKey
         : CONTEXT_ID_KEY
 
-    const baggageKey = typeof options.baggageKey === 'string'
+    const baggageKey = is.string(options.baggageKey)
         ? options.baggageKey
         : BAGGAGE_KEY
 
-    if (typeof carrier[contextIdKey] !== 'string') {
+    if (!is.string(carrier[contextIdKey])) {
         return null
     }
 

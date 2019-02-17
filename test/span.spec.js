@@ -34,7 +34,7 @@ describe('Span', function () {
             assert(idOfLength(span.context().getId(), 16))
         })
 
-        it('sets name to "default" when not name is specified', function () {
+        it('sets name to "default" when no name is specified', function () {
 
             const span = new Span({})
 
@@ -48,7 +48,7 @@ describe('Span', function () {
             assert(idOfLength(span.context().getTraceId(), 32))
         })
 
-        it('sets span count on transaction context', function () {
+        it('sets span count for transaction', function () {
 
             const span = new Span({}, 'test_span')
 
@@ -65,7 +65,7 @@ describe('Span', function () {
             assert.strictEqual(span.context().getTransactionId(), void 0)
         })
 
-        it('does not set transaction_id on new transaction witout parents', function () {
+        it('does not set parent_id on new transaction witout parents', function () {
 
             const span = new Span({}, 'test_span')
 
@@ -79,14 +79,14 @@ describe('Span', function () {
             assert.strictEqual(span._transactionStartTime, void 0)
         })
 
-        it('sets _startTime on the transaction span', function () {
+        it('sets _startTime on the transaction', function () {
 
             const span = new Span({}, 'test_span')
 
             assert.strictEqual(typeof span._startTime, 'number')
         })
 
-        it('sets _sampler on the transaction span', function () {
+        it('sets sampled on the transaction depending on sampler', function () {
 
             const sampler = new NeverSampler()
 
@@ -119,7 +119,7 @@ describe('Span', function () {
             assert.strictEqual(span2._data.span_count, void 0)
         })
 
-        it('sets same trace id as the parent one on non-transaction span', function () {
+        it('sets same trace id as the parent one on a non-transaction', function () {
 
             const span1 = new Span({}, 'test_span_1')
             const span2 = new Span({}, 'test_span_2', {
@@ -355,17 +355,21 @@ describe('Span', function () {
 
         it('sets inital tags from options', function () {
 
+            const tags = {
+                'key1': 'value1',
+                'key2': 'value2',
+            }
+
             const span = new Span({}, 'test_span', {
-                tags: {
-                    'key1': 'value1',
-                    'key2': 'value2',
-                },
+                tags: tags,
             })
 
             assert.deepStrictEqual(span._data.context.tags, {
                 'key1': 'value1',
                 'key2': 'value2',
             })
+
+            assert.notEqual(span._data.context.tags, tags)
         })
 
         it('sets start time to the passed one from options', function () {
@@ -374,7 +378,7 @@ describe('Span', function () {
                 startTime: 12345,
             })
 
-            assert.strictEqual(span._startTime, 12345)
+            assert.strictEqual(span._getStartTime(), 12345)
         })
 
         it('sets sampled to false when sampler returns false', function () {
@@ -384,6 +388,13 @@ describe('Span', function () {
             const span = new Span({}, 'test_span', { sampler })
 
             assert.strictEqual(span.context().isSampled(), false)
+        })
+
+        it('sets sampled to true by default', function () {
+
+            const span = new Span({}, 'test_span')
+
+            assert.strictEqual(span.context().isSampled(), true)
         })
 
         it('creates generic opentracing span when parent transaction is not sampled', function () {
@@ -546,6 +557,7 @@ describe('Span', function () {
 
             assert.deepStrictEqual(span.getBaggageItem('parent'), 'item')
             assert.deepStrictEqual(span.getBaggageItem('child'), 'item')
+            assert.notEqual(span.context().getBaggage(), transaction.context().getBaggage())
         })
     })
 
@@ -610,7 +622,7 @@ describe('Span', function () {
             assert.strictEqual(value, 'value')
         })
 
-        it('returns store object', function () {
+        it('returns stored object', function () {
 
             span._setBaggageItem('key', { some: 'object' })
 
@@ -629,17 +641,21 @@ describe('Span', function () {
 
     describe('_addTags internal method', function () {
 
-        it('adds baggage item', function () {
+        it('adds tags', function () {
 
-            span._addTags({
+            const tags = {
                 'key1': 'value1',
                 'key2': 'value2',
-            })
+            }
+
+            span._addTags(tags)
 
             assert.deepStrictEqual(span._data.context.tags, {
                 'key1': 'value1',
                 'key2': 'value2',
             })
+
+            assert.notEqual(span._data.context.tags, tags)
         })
     })
 
@@ -698,7 +714,7 @@ describe('Span', function () {
             assert.strictEqual(span._data.marks, void 0)
         })
 
-        it('accepts custom timestamp for span', function () {
+        it('accepts custom timestamp for a span', function () {
 
             const transaction = new Span({}, 'test_span_1')
             const span = new Span({}, 'test_span_1', {
@@ -752,7 +768,9 @@ describe('Span', function () {
             assert.strictEqual(span._data.marks[key], 12345)
 
             assert.strictEqual(tracer.sendError.calls.length, 1)
-            assert.strictEqual(tracer.sendError.calls[0].length, 1)
+            assert.strictEqual(tracer.sendError.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
 
             const error = tracer.sendError.calls[0][0]
 
@@ -777,13 +795,13 @@ describe('Span', function () {
             assert.strictEqual(error.exception.message, 'test error.')
             assert.strictEqual(error.exception.type, 'TypeError')
 
+            assert.strictEqual(error.timestamp, 12345000)
+
             assert(Array.isArray(error.exception.stacktrace))
 
             const topFrame = error.exception.stacktrace[0]
 
             assert.strictEqual(topFrame.abs_path, __filename)
-
-            assert.strictEqual(typeof error.timestamp, 'number')
 
             assert.notEqual(error.id, span.context().getId())
             assert.strictEqual(error.trace_id, span.context().getTraceId())
@@ -831,7 +849,9 @@ describe('Span', function () {
             assert.strictEqual(transaction._data.marks[key], 12345)
 
             assert.strictEqual(tracer.sendError.calls.length, 1)
-            assert.strictEqual(tracer.sendError.calls[0].length, 1)
+            assert.strictEqual(tracer.sendError.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
 
             const error = tracer.sendError.calls[0][0]
 
@@ -856,13 +876,13 @@ describe('Span', function () {
             assert.strictEqual(error.exception.message, 'test error.')
             assert.strictEqual(error.exception.type, 'TypeError')
 
+            assert.strictEqual(error.timestamp, 12345000)
+
             assert(Array.isArray(error.exception.stacktrace))
 
             const topFrame = error.exception.stacktrace[0]
 
             assert.strictEqual(topFrame.abs_path, __filename)
-
-            assert.strictEqual(typeof error.timestamp, 'number')
 
             assert.notEqual(error.id, span.context().getId())
             assert.strictEqual(error.trace_id, span.context().getTraceId())
@@ -876,8 +896,8 @@ describe('Span', function () {
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendError: async () => {
-                    throw errorToEmit
+                sendError: async (e, cb) => {
+                    cb(errorToEmit)
                 }
             }, 'test_span')
 
@@ -888,31 +908,7 @@ describe('Span', function () {
             span._log({
                 event: 'error',
                 'error.object': errorToEmit,
-            }, 12345)
-
-            await timeout(10)
-
-            assert.strictEqual(emittedError, errorToEmit)
-        })
-
-        it('emits errors on sendError', async function () {
-
-            let emittedError = null, errorToEmit = new Error()
-
-            const span = new Span({
-                sendError: async () => {
-                    throw errorToEmit
-                }
-            }, 'test_span')
-
-            span.on('error', function (error) {
-                emittedError = error
             })
-
-            span._log({
-                event: 'error',
-                'error.object': errorToEmit,
-            }, 12345)
 
             await timeout(10)
 
@@ -924,8 +920,8 @@ describe('Span', function () {
             let errorToEmit = new Error(), tracerEmitArgs = null
 
             const tracer = {
-                sendError: async () => {
-                    throw errorToEmit
+                sendError: async (err, cb) => {
+                    cb(errorToEmit)
                 },
                 emit: function (...args) {
                     tracerEmitArgs = args
@@ -964,7 +960,10 @@ describe('Span', function () {
             span._finish()
 
             assert.strictEqual(tracer.sendTransaction.calls.length, 1)
-            assert.strictEqual(tracer.sendTransaction.calls[0].length, 1)
+            assert.strictEqual(tracer.sendTransaction.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendTransaction.calls[0][1], 'function')
+
             assert(!tracer.sendSpan.calls)
 
             const ctx = tracer.sendTransaction.calls[0][0]
@@ -991,7 +990,7 @@ describe('Span', function () {
 
             const ctx = tracer.sendTransaction.calls[0][0]
 
-            assert.strictEqual(ctx.timestamp, 45678)
+            assert.strictEqual(ctx.timestamp, 45678000)
             assert.strictEqual(ctx.duration, 33333)
         })
 
@@ -1010,7 +1009,10 @@ describe('Span', function () {
             })
 
             assert.strictEqual(tracer.sendTransaction.calls.length, 1)
-            assert.strictEqual(tracer.sendTransaction.calls[0].length, 1)
+            assert.strictEqual(tracer.sendTransaction.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendTransaction.calls[0][1], 'function')
+
             assert(!tracer.sendSpan.calls)
 
             const ctx = tracer.sendTransaction.calls[0][0]
@@ -1034,7 +1036,7 @@ describe('Span', function () {
             assert.deepStrictEqual(ctx.span_count, { started: 0, dropped: 0 })
         })
 
-        it('calls tracer sendSpan method for a transaction', function () {
+        it('calls tracer sendSpan method for a transaction', async function () {
 
             const parentSpan = new Span(tracer, 'parent_span')
 
@@ -1046,8 +1048,13 @@ describe('Span', function () {
 
             span._finish()
 
+            await timeout(50)
+
             assert.strictEqual(tracer.sendSpan.calls.length, 1)
-            assert.strictEqual(tracer.sendSpan.calls[0].length, 1)
+            assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
+
             assert(!tracer.sendTransaction.calls)
 
             const ctx = tracer.sendSpan.calls[0][0]
@@ -1070,7 +1077,7 @@ describe('Span', function () {
             assert.strictEqual(ctx.trace_id, parentSpan.context().getTraceId())
         })
 
-        it('accepts custom finish time for span', function () {
+        it('accepts custom finish time for span', async function () {
 
             const parentSpan = new Span(tracer, 'parent_span', {
                 startTime: 11111,
@@ -1085,10 +1092,12 @@ describe('Span', function () {
 
             span._finish(23456)
 
+            await timeout(50)
+
             const ctx = tracer.sendSpan.calls[0][0]
 
             assert.strictEqual(ctx.start, 1234)
-            assert.strictEqual(ctx.timestamp, 23456)
+            assert.strictEqual(ctx.timestamp, 23456000)
             assert.strictEqual(ctx.duration, 11111)
         })
 
@@ -1116,7 +1125,7 @@ describe('Span', function () {
             assert.strictEqual(topFrame.abs_path, __filename)
         })
 
-        it('accepts meta for a span', function () {
+        it('accepts meta for a span', async function () {
 
             const parentSpan = new Span(tracer, 'parent_span')
 
@@ -1137,8 +1146,13 @@ describe('Span', function () {
                 }
             })
 
+            await timeout(50)
+
             assert.strictEqual(tracer.sendSpan.calls.length, 1)
-            assert.strictEqual(tracer.sendSpan.calls[0].length, 1)
+            assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
+
             assert(!tracer.sendTransaction.calls)
 
             const ctx = tracer.sendSpan.calls[0][0]
@@ -1179,7 +1193,10 @@ describe('Span', function () {
             span._finish()
 
             assert.strictEqual(tracer.sendTransaction.calls.length, 1)
-            assert.strictEqual(tracer.sendTransaction.calls[0].length, 1)
+            assert.strictEqual(tracer.sendTransaction.calls[0].length, 2)
+
+            assert.strictEqual(typeof tracer.sendTransaction.calls[0][1], 'function')
+
             assert(!tracer.sendSpan.calls)
         })
 
@@ -1188,8 +1205,8 @@ describe('Span', function () {
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendTransaction: async () => {
-                    throw errorToEmit
+                sendTransaction: async (t, cb) => {
+                    cb(errorToEmit)
                 }
             }, 'test_span')
 
@@ -1209,8 +1226,8 @@ describe('Span', function () {
             let errorToEmit = new Error(), tracerEmitArgs = null
 
             const tracer = {
-                sendTransaction: async () => {
-                    throw errorToEmit
+                sendTransaction: async (t, cb) => {
+                    cb(errorToEmit)
                 },
                 emit: function (...args) {
                     tracerEmitArgs = args
@@ -1232,8 +1249,8 @@ describe('Span', function () {
             let emittedThis = null
 
             const span = new Span({
-                sendTransaction: async () => {
-                    throw new Error()
+                sendTransaction: async (t, cb) => {
+                    cb(new Error())
                 }
             }, 'test_span')
 
@@ -1255,8 +1272,8 @@ describe('Span', function () {
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendSpan: async () => {
-                    throw errorToEmit
+                sendSpan: async (s, cb) => {
+                    cb(errorToEmit)
                 }
             }, 'test_span', {
                 references: [
@@ -1282,8 +1299,8 @@ describe('Span', function () {
             const transaction = new Span({}, 'test_transaction')
 
             const tracer = {
-                sendSpan: async () => {
-                    throw errorToEmit
+                sendSpan: async (span, cb) => {
+                    cb(errorToEmit)
                 },
                 emit: function (...args) {
                     tracerEmitArgs = args

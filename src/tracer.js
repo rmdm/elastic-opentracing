@@ -4,12 +4,12 @@ const { EventEmitter } = require('events')
 
 const Span = require('./span')
 const FairRateSampler = require('./samplers/rate_fair')
-const textMap = require('./util/serdes/text_map')
+const textMap = require('./mixers/text_map')
 
 const { version, name } = require('../package')
 
 const agentConstants = {
-    agentName: 'nodejs',
+    agentName: name,
     agentVersion: version,
     userAgent: `${name}/${version}`,
 }
@@ -30,9 +30,11 @@ class Tracer extends opentracing.Tracer {
             Object.assign({}, agentOptions, agentConstants))
 
         this._client.on('request-error', (error) => {
+            /* eslint-disable no-empty */
             try {
                 this.emit('error', error)
             } catch (err) {}
+            /* eslint-enable no-empty */
         })
 
         this._contextIdKey = contextIdKey
@@ -84,45 +86,20 @@ class Tracer extends opentracing.Tracer {
         }
     }
 
-    sendTransaction (transaction) {
-        return new Promise((resolve, reject) => {
-            this._client.sendTransaction(transaction, function (err) {
-                if (err) {
-                    return reject(err)
-                }
-                resolve()
-            })
-        })
+    sendTransaction (transaction, cb) {
+        this._client.sendTransaction(transaction, cb)
     }
 
-    sendSpan (span) {
-        return new Promise((resolve, reject) => {
-            this._client.sendSpan(span, function (err) {
-                if (err) {
-                    return reject(err)
-                }
-                resolve()
-            })
-        })
+    sendSpan (span, cb) {
+        this._client.sendSpan(span, cb)
     }
 
-    sendError (error) {
-        return new Promise((resolve, reject) => {
-            this._client.sendError(error, function (err) {
-                if (err) {
-                    return reject(err)
-                }
-                resolve()
-            })
-        })
+    sendError (error, cb) {
+        this._client.sendError(error, cb)
     }
 
-    end () {
-        return new Promise((resolve) => {
-            this._client.end(function () {
-                resolve()
-            })
-        })
+    end (cb) {
+        this._client.end(cb)
     }
 }
 

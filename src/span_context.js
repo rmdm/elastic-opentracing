@@ -2,9 +2,9 @@ const opentracing = require('opentracing')
 
 class SpanContext extends opentracing.SpanContext {
 
-    constructor ({ baggage } = {}) {
+    constructor () {
         super()
-        this.baggage = isObject(baggage) ? baggage : {}
+        this.baggage = {}
     }
 
     setTraceId (trace_id) {
@@ -27,35 +27,35 @@ class SpanContext extends opentracing.SpanContext {
         this.sampled = sampled
     }
 
-    setBaggage (baggage) {
-        Object.assign(this.baggage, baggage)
-    }
-
     setBaggageItem (key, value) {
         this.baggage[key] = value
     }
 
-    getTraceId (trace_id) {
+    setBaggage (baggage) {
+        Object.assign(this.baggage, baggage)
+    }
+
+    getTraceId () {
         return this.trace_id
     }
 
-    getTransactionId (transaction_id) {
+    getTransactionId () {
         return this.transaction_id
     }
 
-    getParentId (parent_id) {
+    getParentId () {
         return this.parent_id
     }
 
-    getId (id) {
+    getId () {
         return this.id
     }
 
-    isSampled (sampled) {
+    isSampled () {
         return this.sampled
     }
 
-    getBaggageItem (key, value) {
+    getBaggageItem (key) {
         return this.baggage[key]
     }
 
@@ -69,7 +69,3 @@ class SpanContext extends opentracing.SpanContext {
 }
 
 module.exports = SpanContext
-
-function isObject (obj) {
-    return typeof obj === 'object' && obj !== null
-}

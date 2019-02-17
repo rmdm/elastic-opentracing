@@ -1,0 +1,10 @@
+language: node_js
+node_js:
+  - "11"
+  - "10"
+  - "8"
+  - "6"
+  - "4"
+
+script: "npm run ci"
+after_script: "cat ./coverage/lcov.info | coveralls"

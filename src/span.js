@@ -4,7 +4,8 @@ const { EventEmitter } = require('events')
 const SpanContext = require('./span_context')
 
 const randomId = require('./util/random_id')
-const getStackTrace = require('./util/get_stack_trace')
+const { getStackTrace, getCulprit } = require('./util/stacktrace')
+const is = require('./util/is')
 
 const activeTransactions = {}
 
@@ -13,112 +14,37 @@ class Span extends opentracing.Span {
     constructor (tracer, name, options = {}) {
         super()
 
-        let spanContext
+        const parentContext = this._getParentContext(options.references)
 
-        const parentContext = getParentContext(options.references)
+        if (parentContext) {
 
-        const isNonEmptyParentSpan = parentContext instanceof SpanContext
-            && parentContext.getId() && parentContext.getTraceId()
-
-        if (isNonEmptyParentSpan) {
-
-            const parentBaggage = parentContext.getBaggage()
-
-            spanContext = new SpanContext({ baggage: parentBaggage })
-
-            // parent is not necessary a transaction
-            const transactionId =
-                parentContext.getTransactionId() || parentContext.getId()
-
-            const relatedTransaction = this._getActiveTransaction(transactionId)
+            const relatedTransaction =
+                this._getRelatedTransaction(parentContext)
 
             if (relatedTransaction) {
 
                 if (!relatedTransaction.context().isSampled()) {
-                    relatedTransaction._childSpanDropped()
-                    return new opentracing.Span()
+
+                    return this._dummySpan(relatedTransaction)
+
+                } else {
+
+                    this._initCommon(tracer, name, options)
+                    this._initSpan(relatedTransaction, options)
+                    this._initChildSpan(parentContext)
                 }
 
-                relatedTransaction._childSpanStarted()
-
-                this._transactionStartTime = relatedTransaction._startTime
-                this._transactionData = relatedTransaction._transactionData
-
-                spanContext.setSampled(true)
-                spanContext.setTransactionId(transactionId)
-            }
-
-            this._isTransaction = !relatedTransaction
-
-            spanContext.setParentId(parentContext.getId())
-            spanContext.setTraceId(parentContext.getTraceId())
-
-        } else {
-
-            spanContext = new SpanContext()
-
-            this._isTransaction = true
-
-            spanContext.setTraceId(randomId(16))
-        }
-
-        EventEmitter.call(this)
-
-        this._startTime = isNumber(options.startTime)
-            ? options.startTime
-            : Date.now()
-
-        this._spanTracer = tracer
-        this._spanContext = spanContext
-        this._data = {
-            name: isString(name) ? name: 'default',
-            context: {
-                tags: isObject(options.tags) ? options.tags : {},
-            },
-        }
-
-        spanContext.setId(randomId(8))
-
-        if (this._isTransaction) {
-
-            this._registerTransaction()
-
-            const meta = pickTransactionMetaFields(options.meta)
-
-            Object.assign(this._data, { type: 'transaction' }, meta, {
-                context: Object.assign(meta.context, this._data.context),
-                marks: {},
-                span_count: { started: 0, dropped: 0 },
-            })
-
-            if (options.sampler && isFunction(options.sampler.sample)) {
-                const hint = isNonEmptyParentSpan
-                    ? parentContext.isSampled()
-                    : false
-                spanContext.setSampled(options.sampler.sample(this, hint))
             } else {
-                spanContext.setSampled(true)
-            }
 
-            this._transactionData = {
-                type: this._data.type,
-                sampled: spanContext.isSampled(),
+                this._initCommon(tracer, name, options)
+                this._initTransaction(parentContext, options)
+                this._initChildSpan(parentContext)
             }
 
         } else {
 
-            const meta = pickSpanMetaFields(options.meta)
-
-            Object.assign(this._data, { type: 'span' }, meta, {
-                context: Object.assign(meta.context, this._data.context),
-            })
-
-            this._captureStackTrace = Boolean(options.captureStackTrace)
-
-            if (this._captureStackTrace) {
-                this._stackObj = {}
-                Error.captureStackTrace(this._stackObj, this.constructor)
-            }
+            this._initCommon(tracer, name, options)
+            this._initTransaction(parentContext, options)
         }
     }
 
@@ -134,10 +60,6 @@ class Span extends opentracing.Span {
         this._data.name = name
     }
 
-    _getOperationName () {
-        return this._data.name
-    }
-
     _setBaggageItem (key, value) {
         this._spanContext.setBaggageItem(key, JSON.stringify(value))
     }
@@ -146,7 +68,7 @@ class Span extends opentracing.Span {
 
         const value = this._spanContext.getBaggageItem(key)
 
-        if (isString(value)) {
+        if (is.string(value)) {
             return JSON.parse(value)
         }
     }
@@ -156,13 +78,15 @@ class Span extends opentracing.Span {
         const tags = this._data.context.tags
 
         for (const key in keyValuePairs) {
-            tags[key] = keyValuePairs[key]
+            if (is.own(keyValuePairs, key)) {
+                tags[key] = keyValuePairs[key]
+            }
         }
     }
 
     _log (keyValuePairs, timestamp) {
 
-        timestamp = isNumber(timestamp) ? timestamp : Date.now()
+        timestamp = is.number(timestamp) ? timestamp : Date.now()
 
         this._logErrorIfPresent(keyValuePairs, timestamp)
 
@@ -182,7 +106,7 @@ class Span extends opentracing.Span {
 
         this._finished = true
 
-        const timestamp = isNumber(finishTime) ? finishTime : Date.now()
+        let timestamp = is.number(finishTime) ? finishTime : Date.now()
         const duration = timestamp - this._startTime
 
         if (this._isTransaction) {
@@ -190,6 +114,126 @@ class Span extends opentracing.Span {
         } else {
             this._finishSpan(meta, timestamp, duration)
         }
+    }
+
+    _dummySpan (relatedTransaction) {
+        relatedTransaction._childSpanDropped()
+        return new opentracing.Span()
+    }
+
+    _initCommon (tracer, name, options) {
+
+        EventEmitter.call(this)
+
+        this._startTime = is.number(options.startTime)
+            ? options.startTime
+            : Date.now()
+
+        this._spanContext = new SpanContext()
+        this._spanContext.setId(randomId(8))
+
+        this._spanTracer = tracer
+        this._data = {
+            name: is.string(name) ? name: 'default',
+            context: {
+                tags: Object.assign({}, options.tags),
+            },
+        }
+    }
+
+    _initSpan (relatedTransaction, options) {
+
+        relatedTransaction._childSpanStarted()
+
+        this._isTransaction = false
+
+        this._transactionStartTime = relatedTransaction._getStartTime()
+        this._transactionData = relatedTransaction._getTransactionData()
+
+        this._spanContext.setTransactionId(relatedTransaction.context().getId())
+        this._spanContext.setSampled(true)
+
+        const meta = pickSpanMetaFields(options.meta)
+
+        Object.assign(this._data, { type: 'span' }, meta, {
+            context: Object.assign(meta.context, this._data.context),
+        })
+
+        this._captureStackTrace = Boolean(options.captureStackTrace)
+
+        if (this._captureStackTrace) {
+            this._stackObj = {}
+            Error.captureStackTrace(this._stackObj, this.constructor)
+        }
+    }
+
+    _initChildSpan (parentContext) {
+
+        const parentBaggage = parentContext.getBaggage()
+
+        this._spanContext.setBaggage(parentBaggage)
+        this._spanContext.setParentId(parentContext.getId())
+        this._spanContext.setTraceId(parentContext.getTraceId())
+    }
+
+    _initTransaction (parentContext, options) {
+
+        this._registerTransaction()
+
+        this._isTransaction = true
+
+        this._spanContext.setTraceId(randomId(16))
+
+        const meta = pickTransactionMetaFields(options.meta)
+
+        Object.assign(this._data, { type: 'transaction' }, meta, {
+            context: Object.assign(meta.context, this._data.context),
+            marks: {},
+            span_count: { started: 0, dropped: 0 },
+        })
+
+        if (options.sampler && is.function(options.sampler.sample)) {
+            const hint = parentContext
+                ? parentContext.isSampled()
+                : false
+            this._spanContext.setSampled(options.sampler.sample(this, hint))
+        } else {
+            this._spanContext.setSampled(true)
+        }
+
+        this._transactionData = {
+            type: this._data.type,
+            sampled: this._spanContext.isSampled(),
+        }
+    }
+
+    _getParentContext (references) {
+
+        if (is.array(references)) {
+            if (!references.length) {
+                return null
+            } else if (references.length === 1) {
+                const parentContext = references[0].referencedContext()
+                return ( parentContext instanceof SpanContext
+                            && parentContext.getId()
+                            && parentContext.getTraceId())
+                    ? parentContext
+                    : null
+            } else {
+                throw new Error('Multiple references not supported.')
+            }
+        }
+
+        return null
+    }
+
+    _getRelatedTransaction (parentContext) {
+
+        // parent is not necessary a transaction
+        const transactionId =
+            parentContext.getTransactionId() || parentContext.getId()
+
+        return this._getActiveTransaction(transactionId)
     }
 
     _childSpanStarted () {
@@ -212,6 +256,18 @@ class Span extends opentracing.Span {
         return activeTransactions[id]
     }
 
+    _getStartTime () {
+        return this._startTime
+    }
+
+    _getTransactionData () {
+        return this._transactionData
+    }
+
+    _getOperationName () {
+        return this._data.name
+    }
+
     _logErrorIfPresent (keyValuePairs, timestamp) {
 
         if (keyValuePairs.event === 'error') {
@@ -224,6 +280,7 @@ class Span extends opentracing.Span {
 
                 delete keyValuePairs['error.object']
                 delete keyValuePairs['error.meta']
+                delete keyValuePairs['stack']
                 keyValuePairs['error.object.message'] = error.message
             }
         }
@@ -237,8 +294,6 @@ class Span extends opentracing.Span {
         if (transaction) {
             transaction._log(keyValuePairs, timestamp)
         }
-
-        return
     }
 
     _logPlainValues (keyValuePairs, timestamp) {
@@ -248,7 +303,7 @@ class Span extends opentracing.Span {
 
                 const value = keyValuePairs[key]
 
-                if (isObject(value)) {
+                if (is.object(value)) {
                     return `${key}:${JSON.stringify(value)}`
                 } else {
                     return `${key}:${value}`
@@ -261,61 +316,61 @@ class Span extends opentracing.Span {
 
     _logError (error, meta, timestamp) {
 
-        const spanContext = this._spanContext
+        getStackTrace(error, (err, stacktrace) => {
 
-        meta = pickErrorMetaFields(meta)
+            if (err) {
+                return this._emitError(err)
+            }
 
-        getStackTrace(error)
-            .then(stacktrace => {
+            const errorToSend =
+                this._getError(error, meta, timestamp, stacktrace)
 
-                const err = this._getError(error, stacktrace, meta, timestamp)
-
-                return this._spanTracer.sendError(err)
+            return this._spanTracer.sendError(errorToSend, (err) => {
+                if (err) {
+                    this._emitError(err)
+                }
             })
-            .then(null, (err) => {
-                this._emitError(err)
-            })
+        })
     }
 
     _finishTransaction (meta, timestamp, duration) {
 
         this._dropTransaction()
 
-        meta = pickTransactionMetaFields(meta)
-
         const transaction = this._getTransaction(meta, timestamp, duration)
 
-        if (isFunction(this._spanTracer.sendTransaction)) {
-            Promise.resolve(this._spanTracer.sendTransaction(transaction))
-                .then(null, (err) => {
+        if (is.function(this._spanTracer.sendTransaction)) {
+            this._spanTracer.sendTransaction(transaction, (err) => {
+                if (err) {
                     this._emitError(err)
-                })
+                }
+            })
         }
     }
 
     _finishSpan (meta, timestamp, duration) {
 
-        const start = this._startTime - this._transactionStartTime
+        const span = this._getSpan(meta, timestamp, duration)
 
-        meta = pickSpanMetaFields(meta)
-
-        const span = this._getSpan(meta, timestamp, duration, start)
-
-        if (isFunction(this._spanTracer.sendSpan)) {
+        if (is.function(this._spanTracer.sendSpan)) {
             if (this._captureStackTrace) {
-                getStackTrace(this._stackObj)
-                    .then((stacktrace) => {
-                        span.stacktrace = stacktrace
-                        return this._spanTracer.sendSpan(span)
+                return getStackTrace(this._stackObj, (err, stacktrace) => {
+                    if (err) {
+                        return this._emitError(err)
+                    }
+                    span.stacktrace = stacktrace
+                    this._spanTracer.sendSpan(span, (err) => {
+                        if (err) {
+                            this._emitError(err)
+                        }
                     })
-                    .then(null, (err) => {
-                        this._emitError(err)
-                    })
+                })
             } else {
-                Promise.resolve(this._spanTracer.sendSpan(span))
-                    .then(null, (err) => {
+                this._spanTracer.sendSpan(span, (err) => {
+                    if (err) {
                         this._emitError(err)
-                    })
+                    }
+                })
             }
         }
     }
@@ -328,6 +383,8 @@ class Span extends opentracing.Span {
 
         delete context.baggage
 
+        meta = pickTransactionMetaFields(meta)
+
         return Object.assign(
             context,
             this._data,
@@ -338,13 +395,14 @@ class Span extends opentracing.Span {
                     this._data.context,
                     { baggage }
                 ),
-                timestamp,
+                // apm expects timestamp to be in microseconds
+                timestamp: timestamp * 1000,
                 duration,
-            },
+            }
         )
     }
 
-    _getSpan (meta, timestamp, duration, start) {
+    _getSpan (meta, timestamp, duration) {
 
         const context = this._spanContext.toObject()
 
@@ -353,6 +411,10 @@ class Span extends opentracing.Span {
         delete context.baggage
         delete context.sampled
 
+        const start = this._startTime - this._transactionStartTime
+
+        meta = pickSpanMetaFields(meta)
+
         return Object.assign(
             context,
             this._data,
@@ -363,68 +425,58 @@ class Span extends opentracing.Span {
                     this._data.context,
                     { baggage }
                 ),
-                timestamp,
+                // apm expects timestamp to be in microseconds
+                timestamp: timestamp * 1000,
                 duration,
                 start,
             }
         )
     }
 
-    _getError (error, stacktrace, meta, timestamp) {
+    _getError (error, meta, timestamp, stacktrace) {
 
         const context = this._spanContext
 
+        meta = pickErrorMetaFields(meta)
+
         return Object.assign({
-                timestamp,
-                id: randomId(8),
-                trace_id: context.getTraceId(),
-                transaction_id: this._isTransaction
-                    ? context.getId()
-                    : context.getTransactionId(),
-                parent_id: context.getId(),
-                transaction: this._transactionData,
-                culprit: getCulprit(stacktrace),
-                exception: {
-                    message: error.message,
-                    stacktrace: stacktrace,
-                    type: error.name,
-                },
+            // apm expects timestamp to be in microseconds
+            timestamp: timestamp * 1000,
+            id: randomId(8),
+            trace_id: context.getTraceId(),
+            transaction_id: this._isTransaction
+                ? context.getId()
+                : context.getTransactionId(),
+            parent_id: context.getId(),
+            transaction: this._transactionData,
+            culprit: getCulprit(stacktrace),
+            exception: {
+                message: error.message,
+                stacktrace: stacktrace,
+                type: error.name,
             },
-            meta
+        },
+        meta
         )
     }
 
     _emitError (error) {
-
+        /* eslint-disable no-empty */
         // do not throw when there is no user-defined handlers
         try {
             this.emit('error', error)
         } catch (e) {}
 
-        if (isFunction(this._spanTracer.emit)) {
+        if (is.function(this._spanTracer.emit)) {
             try {
                 this._spanTracer.emit('error', error)
             } catch (e) {}
         }
+        /* eslint-enable no-empty */
     }
 }
 
 Object.assign(Span.prototype, EventEmitter.prototype)
-
-function getParentContext (references) {
-
-    if (isArray(references)) {
-        if (!references.length) {
-            return null
-        } else if (references.length === 1) {
-            return references[0].referencedContext()
-        } else {
-            throw new Error('Multiple references not supported.')
-        }
-    }
-
-    return null
-}
 
 const transactionMetaFields = [
     'type',
@@ -448,7 +500,7 @@ function createMetaFieldsGetter (allowedFields) {
 
     return function (meta) {
 
-        if (!isObject(meta)) {
+        if (!is.object(meta)) {
             meta = {}
         }
 
@@ -457,7 +509,7 @@ function createMetaFieldsGetter (allowedFields) {
         const fields = { context }
 
         for (const field of allowedFields) {
-            if (hasOwn(meta, field)) {
+            if (is.own(meta, field)) {
                 fields[field] = meta[field]
             }
         }
@@ -474,53 +526,6 @@ function getMetaContext (metaContext) {
     delete context.baggage
 
     return context
-}
-
-function getCulprit (stacktrace) {
-
-    if (!isArray(stacktrace) || !stacktrace.length) {
-        return null
-    }
-
-    const topFrame = stacktrace[0]
-
-    if (topFrame.function) {
-        if (topFrame.abs_path) {
-            return `${topFrame.function} (${topFrame.abs_path})`
-        } else {
-            return topFrame.function
-        }
-    } else {
-        if (topFrame.abs_path) {
-            return topFrame.abs_path
-        } else {
-            return ''
-        }
-    }
-}
-
-function isObject (obj) {
-    return typeof obj === 'object' && obj !== null
-}
-
-function hasOwn (obj, prop) {
-    return Object.prototype.hasOwnProperty.call(obj, prop)
-}
-
-function isNumber (num) {
-    return typeof num === 'number'
-}
-
-function isString (srt) {
-    return typeof srt === 'string'
-}
-
-function isArray (arr) {
-    return Array.isArray(arr)
-}
-
-function isFunction (fun) {
-    return typeof fun === 'function'
 }
 
 module.exports = Span
