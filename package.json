@@ -2,16 +2,22 @@
   "name": "elastic-opentracing",
   "version": "0.1.0",
   "description": "An alternative unopinionated Elastic APM OpenTracing agent for Node.js.",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "ci": "npm run lint && npm run cover",
     "lint": "eslint src",
-    "test": "mocha --recursive test",
-    "cover": "nyc npm t"
+    "test": "mocha -r '@babel/register' --recursive test",
+    "cover": "nyc npm t",
+    "build": "babel src -d lib",
+    "prepublishOnly": "npm run build"
   },
   "author": "rmdm",
   "license": "MIT",
   "devDependencies": {
+    "@babel/cli": "^7.2.3",
+    "@babel/core": "^7.3.3",
+    "@babel/preset-env": "^7.3.1",
+    "@babel/register": "^7.0.0",
     "chai": "^4.2.0",
     "coveralls": "^3.0.2",
     "eslint": "^5.13.0",
@@ -23,5 +29,9 @@
     "elastic-apm-http-client": "^7.1.0",
     "opentracing": "^0.14.3",
     "stackman": "^3.0.2"
-  }
+  },
+  "files": [
+    "lib",
+    "index.js"
+  ]
 }

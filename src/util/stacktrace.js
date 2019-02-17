@@ -55,7 +55,7 @@ function getStackFrame (callsite, cb) {
 function mapCallsite (callsite, sourceContext) {
 
     const absFileName = callsite.getFileName()
-    const filename = path.basename(absFileName)
+    const filename = is.string(absFileName) ? path.basename(absFileName) : ''
 
     return {
         abs_path: absFileName,

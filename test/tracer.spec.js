@@ -460,7 +460,7 @@ describe('Tracer', function () {
 
     describe('sendTransaction method', function () {
 
-        it('passes specified transaction to internal client sendTransaction method', async function () {
+        it('passes specified transaction to internal client sendTransaction method', function () {
 
             sinon.stub(tracer._client, 'sendTransaction').callsFake(function (t, cb) {
                 cb()
@@ -468,7 +468,7 @@ describe('Tracer', function () {
 
             const transaction = {}, cb = ()=>{}
 
-            await tracer.sendTransaction(transaction, cb)
+            tracer.sendTransaction(transaction, cb)
 
             assert.strictEqual(
                 tracer._client.sendTransaction.getCall(0).args[0],
@@ -483,13 +483,13 @@ describe('Tracer', function () {
 
     describe('sendSpan method', function () {
 
-        it('passes specified span to internal client sendSpan method', async function () {
+        it('passes specified span to internal client sendSpan method', function () {
 
             sinon.stub(tracer._client, 'sendSpan')
 
             const span = {}, cb = ()=>{}
 
-            await tracer.sendSpan(span, cb)
+            tracer.sendSpan(span, cb)
 
             assert.strictEqual(
                 tracer._client.sendSpan.getCall(0).args[0],
@@ -504,13 +504,13 @@ describe('Tracer', function () {
 
     describe('sendError method', function () {
 
-        it('passes specified error to internal client sendError method', async function () {
+        it('passes specified error to internal client sendError method', function () {
 
             sinon.stub(tracer._client, 'sendError')
 
             const error = {}, cb = ()=>{}
 
-            await tracer.sendError(error, cb)
+            tracer.sendError(error, cb)
 
             assert.strictEqual(
                 tracer._client.sendError.getCall(0).args[0],
@@ -525,13 +525,13 @@ describe('Tracer', function () {
 
     describe('end method', function () {
 
-        it('calls internal client end method', async function () {
+        it('calls internal client end method', function () {
 
             const cb = ()=>{}
 
             sinon.stub(tracer._client, 'end')
 
-            await tracer.end(cb)
+            tracer.end(cb)
             assert.strictEqual(
                 tracer._client.end.getCall(0).args[0],
                 cb

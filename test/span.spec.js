@@ -737,7 +737,7 @@ describe('Span', function () {
             assert.strictEqual(span._data.marks, void 0)
         })
 
-        it('logs transaction-related error', async function testErrorLog () {
+        it('logs transaction-related error', function testErrorLog () {
 
             const tracer = { sendError: stub() }
 
@@ -759,57 +759,59 @@ describe('Span', function () {
                 },
             }, 12345)
 
-            await timeout(50)
+            return timeout(50)
+            .then(function () {
 
-            const key = 'event:error,error.object.message:test error.'
+                const key = 'event:error,error.object.message:test error.'
 
-            assert.deepStrictEqual(Object.keys(span._data.marks), [key])
+                assert.deepStrictEqual(Object.keys(span._data.marks), [key])
 
-            assert.strictEqual(span._data.marks[key], 12345)
+                assert.strictEqual(span._data.marks[key], 12345)
 
-            assert.strictEqual(tracer.sendError.calls.length, 1)
-            assert.strictEqual(tracer.sendError.calls[0].length, 2)
+                assert.strictEqual(tracer.sendError.calls.length, 1)
+                assert.strictEqual(tracer.sendError.calls[0].length, 2)
 
-            assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
+                assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
 
-            const error = tracer.sendError.calls[0][0]
+                const error = tracer.sendError.calls[0][0]
 
-            assert.strictEqual(Object.keys(error).length, 9)
+                assert.strictEqual(Object.keys(error).length, 9)
 
-            assert(idOfLength(error.id, 16))
-            assert(idOfLength(error.trace_id, 32))
-            assert(idOfLength(error.transaction_id, 16))
-            assert(idOfLength(error.parent_id, 16))
+                assert(idOfLength(error.id, 16))
+                assert(idOfLength(error.trace_id, 32))
+                assert(idOfLength(error.transaction_id, 16))
+                assert(idOfLength(error.parent_id, 16))
 
-            assert.deepStrictEqual(error.transaction, {
-                sampled: true,
-                type: 'request',
+                assert.deepStrictEqual(error.transaction, {
+                    sampled: true,
+                    type: 'request',
+                })
+
+                assert.deepStrictEqual(error.context, {
+                    request: { some: 'request' },
+                })
+
+                assert.strictEqual(error.culprit, `testErrorLog (${__filename})`)
+
+                assert.strictEqual(error.exception.message, 'test error.')
+                assert.strictEqual(error.exception.type, 'TypeError')
+
+                assert.strictEqual(error.timestamp, 12345000)
+
+                assert(Array.isArray(error.exception.stacktrace))
+
+                const topFrame = error.exception.stacktrace[0]
+
+                assert.strictEqual(topFrame.abs_path, __filename)
+
+                assert.notEqual(error.id, span.context().getId())
+                assert.strictEqual(error.trace_id, span.context().getTraceId())
+                assert.strictEqual(error.transaction_id, span.context().getId())
+                assert.strictEqual(error.parent_id, span.context().getId())
             })
-
-            assert.deepStrictEqual(error.context, {
-                request: { some: 'request' },
-            })
-
-            assert.strictEqual(error.culprit, `testErrorLog (${__filename})`)
-
-            assert.strictEqual(error.exception.message, 'test error.')
-            assert.strictEqual(error.exception.type, 'TypeError')
-
-            assert.strictEqual(error.timestamp, 12345000)
-
-            assert(Array.isArray(error.exception.stacktrace))
-
-            const topFrame = error.exception.stacktrace[0]
-
-            assert.strictEqual(topFrame.abs_path, __filename)
-
-            assert.notEqual(error.id, span.context().getId())
-            assert.strictEqual(error.trace_id, span.context().getTraceId())
-            assert.strictEqual(error.transaction_id, span.context().getId())
-            assert.strictEqual(error.parent_id, span.context().getId())
         })
 
-        it('logs span-related error', async function testErrorLog2 () {
+        it('logs span-related error', function testErrorLog2 () {
 
             const tracer = { sendError: stub() }
 
@@ -840,63 +842,64 @@ describe('Span', function () {
                 },
             }, 12345)
 
-            await timeout(50)
+            return timeout(50)
+                .then(function () {
 
-            const key = 'event:error,error.object.message:test error.'
+                const key = 'event:error,error.object.message:test error.'
 
-            assert.deepStrictEqual(Object.keys(transaction._data.marks), [key])
+                assert.deepStrictEqual(Object.keys(transaction._data.marks), [key])
 
-            assert.strictEqual(transaction._data.marks[key], 12345)
+                assert.strictEqual(transaction._data.marks[key], 12345)
 
-            assert.strictEqual(tracer.sendError.calls.length, 1)
-            assert.strictEqual(tracer.sendError.calls[0].length, 2)
+                assert.strictEqual(tracer.sendError.calls.length, 1)
+                assert.strictEqual(tracer.sendError.calls[0].length, 2)
 
-            assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
+                assert.strictEqual(typeof tracer.sendError.calls[0][1], 'function')
 
-            const error = tracer.sendError.calls[0][0]
+                const error = tracer.sendError.calls[0][0]
 
-            assert.strictEqual(Object.keys(error).length, 9)
+                assert.strictEqual(Object.keys(error).length, 9)
 
-            assert(idOfLength(error.id, 16))
-            assert(idOfLength(error.trace_id, 32))
-            assert(idOfLength(error.transaction_id, 16))
-            assert(idOfLength(error.parent_id, 16))
+                assert(idOfLength(error.id, 16))
+                assert(idOfLength(error.trace_id, 32))
+                assert(idOfLength(error.transaction_id, 16))
+                assert(idOfLength(error.parent_id, 16))
 
-            assert.deepStrictEqual(error.transaction, {
-                sampled: true,
-                type: 'transaction',
+                assert.deepStrictEqual(error.transaction, {
+                    sampled: true,
+                    type: 'transaction',
+                })
+
+                assert.deepStrictEqual(error.context, {
+                    request: { some: 'request' },
+                })
+
+                assert.strictEqual(error.culprit, `testErrorLog2 (${__filename})`)
+
+                assert.strictEqual(error.exception.message, 'test error.')
+                assert.strictEqual(error.exception.type, 'TypeError')
+
+                assert.strictEqual(error.timestamp, 12345000)
+
+                assert(Array.isArray(error.exception.stacktrace))
+
+                const topFrame = error.exception.stacktrace[0]
+
+                assert.strictEqual(topFrame.abs_path, __filename)
+
+                assert.notEqual(error.id, span.context().getId())
+                assert.strictEqual(error.trace_id, span.context().getTraceId())
+                assert.strictEqual(error.transaction_id, span.context().getTransactionId())
+                assert.strictEqual(error.parent_id, span.context().getId())
             })
-
-            assert.deepStrictEqual(error.context, {
-                request: { some: 'request' },
-            })
-
-            assert.strictEqual(error.culprit, `testErrorLog2 (${__filename})`)
-
-            assert.strictEqual(error.exception.message, 'test error.')
-            assert.strictEqual(error.exception.type, 'TypeError')
-
-            assert.strictEqual(error.timestamp, 12345000)
-
-            assert(Array.isArray(error.exception.stacktrace))
-
-            const topFrame = error.exception.stacktrace[0]
-
-            assert.strictEqual(topFrame.abs_path, __filename)
-
-            assert.notEqual(error.id, span.context().getId())
-            assert.strictEqual(error.trace_id, span.context().getTraceId())
-            assert.strictEqual(error.transaction_id, span.context().getTransactionId())
-            assert.strictEqual(error.parent_id, span.context().getId())
-
         })
 
-        it('emits errors on sendError', async function () {
+        it('emits errors on sendError', function () {
 
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendError: async (e, cb) => {
+                sendError: (e, cb) => {
                     cb(errorToEmit)
                 }
             }, 'test_span')
@@ -910,17 +913,19 @@ describe('Span', function () {
                 'error.object': errorToEmit,
             })
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.strictEqual(emittedError, errorToEmit)
+                assert.strictEqual(emittedError, errorToEmit)
+            })
         })
 
-        it('emits errors on sendError on related tracer', async function () {
+        it('emits errors on sendError on related tracer', function () {
 
             let errorToEmit = new Error(), tracerEmitArgs = null
 
             const tracer = {
-                sendError: async (err, cb) => {
+                sendError: (err, cb) => {
                     cb(errorToEmit)
                 },
                 emit: function (...args) {
@@ -935,10 +940,12 @@ describe('Span', function () {
                 'error.object': errorToEmit,
             }, 12345)
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
-            assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+                assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
+                assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+            })
         })
     })
 
@@ -1036,7 +1043,7 @@ describe('Span', function () {
             assert.deepStrictEqual(ctx.span_count, { started: 0, dropped: 0 })
         })
 
-        it('calls tracer sendSpan method for a transaction', async function () {
+        it('calls tracer sendSpan method for a transaction', function () {
 
             const parentSpan = new Span(tracer, 'parent_span')
 
@@ -1048,36 +1055,38 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(50)
+            return timeout(50)
+            .then(function () {
 
-            assert.strictEqual(tracer.sendSpan.calls.length, 1)
-            assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
+                assert.strictEqual(tracer.sendSpan.calls.length, 1)
+                assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
 
-            assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
+                assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
 
-            assert(!tracer.sendTransaction.calls)
+                assert(!tracer.sendTransaction.calls)
 
-            const ctx = tracer.sendSpan.calls[0][0]
+                const ctx = tracer.sendSpan.calls[0][0]
 
-            assert.strictEqual(Object.keys(ctx).length, 10)
+                assert.strictEqual(Object.keys(ctx).length, 10)
 
-            assert(idOfLength(ctx.id, 16))
-            assert(idOfLength(ctx.trace_id, 32))
-            assert(idOfLength(ctx.transaction_id, 16))
-            assert(idOfLength(ctx.parent_id, 16))
-            assert.strictEqual(ctx.name, 'test_span')
-            assert.strictEqual(ctx.type, 'span')
-            assert.strictEqual(typeof ctx.start, 'number')
-            assert.strictEqual(typeof ctx.timestamp, 'number')
-            assert.strictEqual(typeof ctx.duration, 'number')
-            assert.deepStrictEqual(ctx.context, { baggage: {}, tags: {} })
+                assert(idOfLength(ctx.id, 16))
+                assert(idOfLength(ctx.trace_id, 32))
+                assert(idOfLength(ctx.transaction_id, 16))
+                assert(idOfLength(ctx.parent_id, 16))
+                assert.strictEqual(ctx.name, 'test_span')
+                assert.strictEqual(ctx.type, 'span')
+                assert.strictEqual(typeof ctx.start, 'number')
+                assert.strictEqual(typeof ctx.timestamp, 'number')
+                assert.strictEqual(typeof ctx.duration, 'number')
+                assert.deepStrictEqual(ctx.context, { baggage: {}, tags: {} })
 
-            assert.strictEqual(ctx.parent_id, parentSpan.context().getId())
-            assert.strictEqual(ctx.transaction_id, parentSpan.context().getId())
-            assert.strictEqual(ctx.trace_id, parentSpan.context().getTraceId())
+                assert.strictEqual(ctx.parent_id, parentSpan.context().getId())
+                assert.strictEqual(ctx.transaction_id, parentSpan.context().getId())
+                assert.strictEqual(ctx.trace_id, parentSpan.context().getTraceId())
+            })
         })
 
-        it('accepts custom finish time for span', async function () {
+        it('accepts custom finish time for span', function () {
 
             const parentSpan = new Span(tracer, 'parent_span', {
                 startTime: 11111,
@@ -1092,16 +1101,18 @@ describe('Span', function () {
 
             span._finish(23456)
 
-            await timeout(50)
+            return timeout(50)
+            .then(function () {
 
-            const ctx = tracer.sendSpan.calls[0][0]
+                const ctx = tracer.sendSpan.calls[0][0]
 
-            assert.strictEqual(ctx.start, 1234)
-            assert.strictEqual(ctx.timestamp, 23456000)
-            assert.strictEqual(ctx.duration, 11111)
+                assert.strictEqual(ctx.start, 1234)
+                assert.strictEqual(ctx.timestamp, 23456000)
+                assert.strictEqual(ctx.duration, 11111)
+            })
         })
 
-        it('captures stack trace when the option specified', async function () {
+        it('captures stack trace when the option specified', function () {
 
             const parentSpan = new Span(tracer, 'parent_span')
 
@@ -1114,18 +1125,20 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(50)
+            return timeout(50)
+            .then(function () {
 
-            const ctx = tracer.sendSpan.calls[0][0]
+                const ctx = tracer.sendSpan.calls[0][0]
 
-            assert(Array.isArray(ctx.stacktrace))
+                assert(Array.isArray(ctx.stacktrace))
 
-            const topFrame = ctx.stacktrace[0]
+                const topFrame = ctx.stacktrace[0]
 
-            assert.strictEqual(topFrame.abs_path, __filename)
+                assert.strictEqual(topFrame.abs_path, __filename)
+            })
         })
 
-        it('accepts meta for a span', async function () {
+        it('accepts meta for a span', function () {
 
             const parentSpan = new Span(tracer, 'parent_span')
 
@@ -1146,40 +1159,42 @@ describe('Span', function () {
                 }
             })
 
-            await timeout(50)
+            return timeout(50)
+            .then(function () {
 
-            assert.strictEqual(tracer.sendSpan.calls.length, 1)
-            assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
+                assert.strictEqual(tracer.sendSpan.calls.length, 1)
+                assert.strictEqual(tracer.sendSpan.calls[0].length, 2)
 
-            assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
+                assert.strictEqual(typeof tracer.sendSpan.calls[0][1], 'function')
 
-            assert(!tracer.sendTransaction.calls)
+                assert(!tracer.sendTransaction.calls)
 
-            const ctx = tracer.sendSpan.calls[0][0]
+                const ctx = tracer.sendSpan.calls[0][0]
 
-            assert.strictEqual(Object.keys(ctx).length, 13)
+                assert.strictEqual(Object.keys(ctx).length, 13)
 
-            assert(idOfLength(ctx.id, 16))
-            assert(idOfLength(ctx.trace_id, 32))
-            assert(idOfLength(ctx.transaction_id, 16))
-            assert(idOfLength(ctx.parent_id, 16))
-            assert.strictEqual(ctx.name, 'test_span')
-            assert.strictEqual(ctx.type, 'request')
-            assert.strictEqual(ctx.subtype, 'http')
-            assert.strictEqual(ctx.action, 'parse')
-            assert.strictEqual(ctx.sync, false)
-            assert.strictEqual(typeof ctx.start, 'number')
-            assert.strictEqual(typeof ctx.timestamp, 'number')
-            assert.strictEqual(typeof ctx.duration, 'number')
-            assert.deepStrictEqual(ctx.context, {
-                baggage: {},
-                tags: {},
-                arbitrary: 'data',
+                assert(idOfLength(ctx.id, 16))
+                assert(idOfLength(ctx.trace_id, 32))
+                assert(idOfLength(ctx.transaction_id, 16))
+                assert(idOfLength(ctx.parent_id, 16))
+                assert.strictEqual(ctx.name, 'test_span')
+                assert.strictEqual(ctx.type, 'request')
+                assert.strictEqual(ctx.subtype, 'http')
+                assert.strictEqual(ctx.action, 'parse')
+                assert.strictEqual(ctx.sync, false)
+                assert.strictEqual(typeof ctx.start, 'number')
+                assert.strictEqual(typeof ctx.timestamp, 'number')
+                assert.strictEqual(typeof ctx.duration, 'number')
+                assert.deepStrictEqual(ctx.context, {
+                    baggage: {},
+                    tags: {},
+                    arbitrary: 'data',
+                })
+
+                assert.strictEqual(ctx.parent_id, parentSpan.context().getId())
+                assert.strictEqual(ctx.transaction_id, parentSpan.context().getId())
+                assert.strictEqual(ctx.trace_id, parentSpan.context().getTraceId())
             })
-
-            assert.strictEqual(ctx.parent_id, parentSpan.context().getId())
-            assert.strictEqual(ctx.transaction_id, parentSpan.context().getId())
-            assert.strictEqual(ctx.trace_id, parentSpan.context().getTraceId())
         })
 
         it('does nothing on the consequent calls', function () {
@@ -1200,12 +1215,12 @@ describe('Span', function () {
             assert(!tracer.sendSpan.calls)
         })
 
-        it('emits errors on sendTransaction', async function () {
+        it('emits errors on sendTransaction', function () {
 
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendTransaction: async (t, cb) => {
+                sendTransaction: (t, cb) => {
                     cb(errorToEmit)
                 }
             }, 'test_span')
@@ -1216,17 +1231,19 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.strictEqual(emittedError, errorToEmit)
+                assert.strictEqual(emittedError, errorToEmit)
+            })
         })
 
-        it('emits tracer errors on sendTransaction', async function () {
+        it('emits tracer errors on sendTransaction', function () {
 
             let errorToEmit = new Error(), tracerEmitArgs = null
 
             const tracer = {
-                sendTransaction: async (t, cb) => {
+                sendTransaction: (t, cb) => {
                     cb(errorToEmit)
                 },
                 emit: function (...args) {
@@ -1238,18 +1255,20 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
-            assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+                assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
+                assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+            })
         })
 
-        it('calls error listener bound to the span', async function () {
+        it('calls error listener bound to the span', function () {
 
             let emittedThis = null
 
             const span = new Span({
-                sendTransaction: async (t, cb) => {
+                sendTransaction: (t, cb) => {
                     cb(new Error())
                 }
             }, 'test_span')
@@ -1260,19 +1279,21 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.strictEqual(emittedThis, span)
+                assert.strictEqual(emittedThis, span)
+            })
         })
 
-        it('emits errors on sendSpan', async function () {
+        it('emits errors on sendSpan', function () {
 
             const transaction = new Span({}, 'test_transaction')
 
             let emittedError = null, errorToEmit = new Error()
 
             const span = new Span({
-                sendSpan: async (s, cb) => {
+                sendSpan: (s, cb) => {
                     cb(errorToEmit)
                 }
             }, 'test_span', {
@@ -1287,19 +1308,21 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.strictEqual(emittedError, errorToEmit)
+                assert.strictEqual(emittedError, errorToEmit)
+            })
         })
 
-        it('emits tracer errors on sendSpan', async function () {
+        it('emits tracer errors on sendSpan', function () {
 
             let errorToEmit = new Error(), tracerEmitArgs = null
 
             const transaction = new Span({}, 'test_transaction')
 
             const tracer = {
-                sendSpan: async (span, cb) => {
+                sendSpan: (span, cb) => {
                     cb(errorToEmit)
                 },
                 emit: function (...args) {
@@ -1315,10 +1338,12 @@ describe('Span', function () {
 
             span._finish()
 
-            await timeout(10)
+            return timeout(10)
+            .then(function () {
 
-            assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
-            assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+                assert.deepStrictEqual(tracerEmitArgs, [ 'error', errorToEmit ])
+                assert.strictEqual(tracerEmitArgs[1], errorToEmit)
+            })
         })
     })
 
