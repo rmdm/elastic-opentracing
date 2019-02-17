@@ -1,4 +1,4 @@
-elastic-opentracing
+elastic-opentracing [![Build Status](https://travis-ci.org/rmdm/elastic-opentracing.svg?branch=master)](https://travis-ci.org/rmdm/elastic-opentracing) [![Coverage Status](https://coveralls.io/repos/github/rmdm/elastic-opentracing/badge.svg?branch=master)](https://coveralls.io/github/rmdm/elastic-opentracing?branch=master)
 ===================
 
 An alternative unopinionated Elastic APM OpenTracing agent for Node.js.
