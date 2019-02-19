@@ -1,11 +1,11 @@
 {
-  "name": "elastic-opentracing",
+  "name": "apm-opentracing",
   "version": "0.1.0",
-  "description": "An alternative unopinionated Elastic APM OpenTracing agent for Node.js.",
+  "description": "An alternative Elastic APM OpenTracing agent for Node.js.",
   "main": "lib/index.js",
   "scripts": {
     "ci": "npm run lint && npm run cover",
-    "lint": "eslint src",
+    "lint": "eslint lib",
     "test": "mocha --recursive test",
     "cover": "nyc npm t"
   },
