@@ -2,11 +2,11 @@ const assert = require('assert')
 const sinon = require('sinon')
 const opentracing = require('opentracing')
 
-const Tracer = require('../src/tracer')
-const Span = require('../src/span')
-const SpanContext = require('../src/span_context')
-const FairRateSampler = require('../src/samplers/rate_fair')
-const NeverSampler = require('../src/samplers/never')
+const Tracer = require('../lib/tracer')
+const Span = require('../lib/span')
+const SpanContext = require('../lib/span_context')
+const FairRateSampler = require('../lib/samplers/rate_fair')
+const NeverSampler = require('../lib/samplers/never')
 
 describe('Tracer', function () {
 

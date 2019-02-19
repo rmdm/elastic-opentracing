@@ -1,6 +1,6 @@
 const assert = require('assert')
 const path = require('path')
-const { getStackTrace } = require('../../src/util/stacktrace')
+const { getStackTrace } = require('../../lib/util/stacktrace')
 
 describe('getStackTrace utility', function () {
 

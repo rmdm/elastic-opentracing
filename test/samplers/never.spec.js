@@ -1,5 +1,5 @@
 const assert = require('assert')
-const NeverSampler = require('../../src/samplers/never')
+const NeverSampler = require('../../lib/samplers/never')
 
 describe('NeverSampler', function () {
 

@@ -1,9 +1,9 @@
 const assert = require('assert')
 const opentracing = require('opentracing')
 
-const Span = require('../src/span')
-const NeverSampler = require('../src/samplers/never')
-const RateSampler = require('../src/samplers/rate')
+const Span = require('../lib/span')
+const NeverSampler = require('../lib/samplers/never')
+const RateSampler = require('../lib/samplers/rate')
 
 describe('Span', function () {
 

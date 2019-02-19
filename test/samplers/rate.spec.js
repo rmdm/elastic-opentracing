@@ -1,5 +1,5 @@
 const assert = require('assert')
-const RateSampler = require('../../src/samplers/rate')
+const RateSampler = require('../../lib/samplers/rate')
 
 describe('RateSampler', function () {
 

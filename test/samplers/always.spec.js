@@ -1,5 +1,5 @@
 const assert = require('assert')
-const AlwaysSampler = require('../../src/samplers/always')
+const AlwaysSampler = require('../../lib/samplers/always')
 
 describe('AlwaysSampler', function () {
 
